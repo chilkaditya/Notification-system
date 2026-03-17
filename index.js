@@ -72,6 +72,12 @@ app.post("/signin", async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    // Update login count and last login time
+    await pool.query(
+      "UPDATE users SET login_count = COALESCE(login_count, 0) + 1, last_login = NOW() WHERE id = $1",
+      [user.id]
+    );
+
     const token = jwt.sign(
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
@@ -85,11 +91,25 @@ app.post("/signin", async (req, res) => {
 });
 
 /**
- * PROTECTED ROUTE EXAMPLE
+ * PROTECTED ROUTE - Get User Info (with login count)
  */
-app.get("/profile", authenticateToken, (req, res) => {
-  res.json({ message: "Welcome!", user: req.user });
+app.get("/user-info", authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT id, email, login_count, last_login FROM users WHERE id = $1",
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: "Server error" });
+  }
 });
+
 
 /**
  * JWT Middleware
