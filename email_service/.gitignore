@@ -1,0 +1,33 @@
+# Never commit these files!
+
+# Google credentials (contains secret keys!)
+credentials.json
+client_secret.json
+token.json
+
+# Environment variables with sensitive data
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environment
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

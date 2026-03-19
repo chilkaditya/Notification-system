@@ -3,11 +3,32 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const axios = require("axios");
 const pool = require("./db");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const EMAIL_SERVICE_URL = "http://127.0.0.1:5000";
+
+// Helper function to send email via Python service
+async function sendEmail(recipientEmail, subject, body) {
+  try {
+    const response = await axios.post(`${EMAIL_SERVICE_URL}/send-email`, {
+      recipient_email: recipientEmail,
+      subject: subject,
+      body: body
+    });
+    
+    console.log(`✅ Email sent to ${recipientEmail}`);
+    return response.data;
+  } catch (error) {
+    console.log(`⚠️ Failed to send email to ${recipientEmail}: ${error.message}`);
+    return null;
+  }
+}
+
 
 
 app.get("/", (req, res) => {
@@ -19,7 +40,6 @@ app.get("/", (req, res) => {
  */
 app.post("/signup", async (req, res) => {
   try {
-    console.log("reached")
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -27,15 +47,18 @@ app.post("/signup", async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     
-    console.log(hashedPassword)
     const user = await pool.query(
-    "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email",
-    [email, hashedPassword]
+      "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING id, email",
+      [email, hashedPassword]
     );
     
-
+    // Send welcome email (fire-and-forget, don't wait)
+    sendEmail(
+      email,
+      "Welcome to Demo Project!",
+      `Hello ${email},\n\nWelcome to our Demo Project!\n\nYour account has been created successfully.\n\nThank you!`
+    );
 
     res.status(201).json({
       message: "User created",
@@ -82,6 +105,13 @@ app.post("/signin", async (req, res) => {
       { id: user.id, email: user.email },
       process.env.JWT_SECRET,
       { expiresIn: "1h" }
+    );
+
+    // Send login notification email (fire-and-forget, don't wait)
+    sendEmail(
+      email,
+      "You have successfully signed in",
+      `Hello ${email},\n\nYou have successfully signed in to your Demo Project account.\n\nLogin Time: ${new Date().toLocaleString()}\n\nIf this wasn't you, please contact support.`
     );
 
     res.json({ token });
